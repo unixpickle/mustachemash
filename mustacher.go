@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/unixpickle/go-flandmark"
 	"image"
 	"math"
+
+	"github.com/unixpickle/go-flandmark"
 )
 
 const MustacheWidthByHeight = 1854.0 / 473.0
