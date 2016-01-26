@@ -89,10 +89,11 @@ func ReadDatabase(directory string) (db *Database, err error) {
 // The threshold parameter specifies the minimum correlation for a match to
 // be reported. At 0, it will report all possible matches, and at 1 it will report
 // only perfect matches.
-func (db *Database) Search(i *Image, threshold float64) []*DatabaseMatch {
+func (db *Database) Search(i *Image) []*DatabaseMatch {
 	res := []*DatabaseMatch{}
 	for _, entry := range db.Entries {
-		for _, match := range i.CorrelationSearch(entry.Image, threshold) {
+		th := entry.Image.RecommendedThreshold()
+		for _, match := range i.CorrelationSearch(entry.Image, th) {
 			dbMatch := &DatabaseMatch{
 				Entry:       entry,
 				Coordinates: match.Coordinates,
@@ -109,8 +110,8 @@ func insertDbMatch(matches []*DatabaseMatch, match *DatabaseMatch) []*DatabaseMa
 	for i, m := range matches {
 		dx := math.Abs(m.Coordinates.X - match.Coordinates.X)
 		dy := math.Abs(m.Coordinates.Y - match.Coordinates.Y)
-		minWidth := math.Min(float64(m.Entry.Image.Width), float64(match.Entry.Image.Width))
-		minHeight := math.Min(float64(m.Entry.Image.Height), float64(match.Entry.Image.Height))
+		minWidth := math.Min(float64(m.Entry.Image.width), float64(match.Entry.Image.width))
+		minHeight := math.Min(float64(m.Entry.Image.height), float64(match.Entry.Image.height))
 		if dx <= minWidth/2 && dy <= minHeight/2 {
 			if match.Correlation > m.Correlation {
 				overrideMatches[i] = true
