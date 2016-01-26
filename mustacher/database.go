@@ -67,7 +67,7 @@ func ReadDatabase(directory string) (db *Database, err error) {
 		mustacheLeft, _ := strconv.Atoi(match[1])
 		mustacheTop, _ := strconv.Atoi(match[2])
 		mustacheAngle, _ := strconv.Atoi(match[3])
-		image, err := ReadImage(filepath.Join(directory, n))
+		image, err := ReadImageFile(filepath.Join(directory, n))
 		if err != nil {
 			return nil, err
 		}

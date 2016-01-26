@@ -2,13 +2,13 @@ package mustacher
 
 import (
 	"image"
+	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"math"
 	"os"
 )
-
-const correlationThreshold = 0.5
 
 type Coordinates struct {
 	X float64
@@ -30,13 +30,18 @@ type Image struct {
 	BrightnessValues []float64
 }
 
-// ReadImage decodes an image file at a given path.
-func ReadImage(path string) (res *Image, err error) {
+// ReadImageFile decodes an image file at a given path.
+func ReadImageFile(path string) (res *Image, err error) {
 	reader, err := os.Open(path)
 	if err != nil {
 		return
 	}
 	defer reader.Close()
+	return ReadImage(reader)
+}
+
+// ReadImage decodes an image file using an io.Reader.
+func ReadImage(reader io.Reader) (res *Image, err error) {
 	decoded, _, err := image.Decode(reader)
 	if err != nil {
 		return
