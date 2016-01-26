@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const thresholdStrictness = 0.7
+
 type Coordinates struct {
 	X float64
 	Y float64
@@ -74,7 +76,7 @@ func ReadImage(reader io.Reader) (res *Image, err error) {
 	res.magnitude = math.Sqrt(magSquared)
 	unchangingSignalMagnitude := math.Sqrt(float64(res.width * res.height))
 	unchangingSignalDot := valueSum / (res.magnitude * unchangingSignalMagnitude)
-	res.recommendedThreshold = (1 + unchangingSignalDot) / 2
+	res.recommendedThreshold = thresholdStrictness + (1-thresholdStrictness)*unchangingSignalDot
 
 	return
 }
