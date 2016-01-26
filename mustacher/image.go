@@ -68,16 +68,18 @@ func (i *Image) BrightnessValue(x, y int) float64 {
 
 // CorrelationSearch finds all the places in an image that are
 // highly correlated with a smaller image.
+// It automatically removes overlapping results by choosing the best match.
+//
 // The threshold argument specifies the minimum correlation (between 0 and 1)
 // for which matches will be reported.
-func (i *Image) CorrelationSearch(subimage *Image, threshold float64) []CorrelationMatch {
-	res := []CorrelationMatch{}
+func (i *Image) CorrelationSearch(subimage *Image, threshold float64) []*CorrelationMatch {
+	res := []*CorrelationMatch{}
 	for y := 0; y < i.Height-subimage.Height; y++ {
 		for x := 0; x < i.Width-subimage.Width; x++ {
 			corr := i.correlation(subimage, x, y)
 			if corr > threshold {
 				c := Coordinates{float64(x), float64(y)}
-				match := CorrelationMatch{Coordinates: c, Correlation: corr}
+				match := &CorrelationMatch{Coordinates: c, Correlation: corr}
 				res = insertCorrelation(res, match, subimage)
 			}
 		}
@@ -108,8 +110,8 @@ func (i *Image) correlation(subimage *Image, startX, startY int) float64 {
 	return dotProduct / (math.Sqrt(iSum) * math.Sqrt(subimageSum))
 }
 
-func insertCorrelation(matches []CorrelationMatch, match CorrelationMatch,
-	subimage *Image) []CorrelationMatch {
+func insertCorrelation(matches []*CorrelationMatch, match *CorrelationMatch,
+	subimage *Image) []*CorrelationMatch {
 	overrideMatches := map[int]bool{}
 	for i, otherResult := range matches {
 		dx := math.Abs(otherResult.Coordinates.X - match.Coordinates.X)
@@ -128,7 +130,7 @@ func insertCorrelation(matches []CorrelationMatch, match CorrelationMatch,
 		return append(matches, match)
 	}
 
-	res := make([]CorrelationMatch, 0, len(matches)-len(overrideMatches)+1)
+	res := make([]*CorrelationMatch, 0, len(matches)-len(overrideMatches)+1)
 	for i, m := range matches {
 		if !overrideMatches[i] {
 			res = append(res, m)
