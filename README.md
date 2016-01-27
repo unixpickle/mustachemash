@@ -2,12 +2,6 @@
 
 MustacheMash will be an awesome website which puts mustaches on all your Facebook friends.
 
-# Dependencies
+# Current status
 
-This depends on OpenCV and [go-flandmark](https://github.com/unixpickle/go-flandmark). You can download and install this as follows:
-
-    git clone https://github.com/unixpickle/go-flandmark.git $GOPATH/src/github.com/unixpickle/go-flandmark
-    cd $GOPATH/src/github.com/unixpickle/go-flandmark
-    make
-    cd -
-    go install github.com/unixpickle/go-flandmark
+I recently attempted to implement face detection using a feature correlation filter. My implementation was extremely slow (boo) and I did not gather enough sample images to see how well it worked (boo). If I have another idea, or if I want to experiment more with feature detection, I will come back to this project.
