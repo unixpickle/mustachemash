@@ -40,11 +40,12 @@ func NewTemplate(i *Image) *Template {
 // template has a correlation above a given threshold.
 func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 	res := make(CorrelationSet, 0)
+	remMagSquared := make([]float64, t.image.Height())
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
 		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
 			var corr float64
-			corr, oldMag = t.correlation(oldMag, img, x, y, threshold)
+			corr, oldMag = t.correlation(oldMag, remMagSquared, img, x, y, threshold)
 			if corr > threshold {
 				res = append(res, &Correlation{
 					Template:    t,
@@ -63,35 +64,44 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 // If the image contains close matches to the template,
 // the returned value will be close to 1.
 func (t *Template) MaxCorrelation(img *Image) float64 {
+	remMagSquared := make([]float64, t.image.Height())
 	var res float64
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
 		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
 			var corr float64
-			corr, oldMag = t.correlation(oldMag, img, x, y, res)
+			corr, oldMag = t.correlation(oldMag, remMagSquared, img, x, y, res)
 			res = math.Max(res, corr)
 		}
 	}
 	return res
 }
 
-func (t *Template) correlation(oldMag float64, img *Image, startX,
-	startY int, threshold float64) (corr float64, imgMag float64) {
+func (t *Template) correlation(oldMag float64, oldRemMagSquared []float64, img *Image,
+	startX, startY int, threshold float64) (corr float64, imgMag float64) {
 
 	imgMag = oldMag
 	if startX == 0 {
-		for y := 0; y < t.image.Height(); y++ {
+		for y := t.image.Height() - 1; y >= 0; y-- {
+			oldRemMagSquared[y] = imgMag
 			for x := 0; x < t.image.Width(); x++ {
 				imgPixel := img.BrightnessValue(startX+x, startY+y)
 				imgMag += imgPixel * imgPixel
 			}
 		}
 	} else {
-		for y := 0; y < t.image.Height(); y++ {
+		var compoundedChange float64
+		for y := t.image.Height() - 1; y >= 0; y-- {
+			oldRemMagSquared[y] += compoundedChange
+
+			var change float64
 			imgPixel := img.BrightnessValue(startX-1, startY+y)
-			imgMag -= imgPixel * imgPixel
+			change -= imgPixel * imgPixel
 			imgPixel = img.BrightnessValue(startX+t.image.Width()-1, startY+y)
-			imgMag += imgPixel * imgPixel
+			change += imgPixel * imgPixel
+
+			imgMag += change
+			compoundedChange += change
 		}
 	}
 
@@ -105,15 +115,13 @@ func (t *Template) correlation(oldMag float64, img *Image, startX,
 	finalNormalization := 1.0 / (math.Sqrt(imgMag) * t.magnitude)
 
 	var dotProduct float64
-	remainingImgMagSquared := imgMag
 	for y := 0; y < t.image.Height(); y++ {
 		for x := 0; x < t.image.Width(); x++ {
 			imgPixel := img.BrightnessValue(startX+x, startY+y)
 			templatePixel := t.image.BrightnessValue(x, y)
 			dotProduct += imgPixel * templatePixel
-			remainingImgMagSquared -= imgPixel * imgPixel
 		}
-		optimalRemainingDot := math.Sqrt(remainingImgMagSquared * t.remainingMagSquared[y])
+		optimalRemainingDot := math.Sqrt(oldRemMagSquared[y] * t.remainingMagSquared[y])
 		if (dotProduct+optimalRemainingDot)*finalNormalization < threshold {
 			return
 		}
