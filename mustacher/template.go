@@ -5,22 +5,33 @@ import "math"
 // A Template is a two-dimensional representation of an object
 // which can be matched against parts of a larger image.
 type Template struct {
-	image      *Image
-	magnitude  float64
-	magSquared float64
+	image               *Image
+	magnitude           float64
+	remainingMagSquared []float64
 }
 
 // NewTemplate generates a template from a training image.
 func NewTemplate(i *Image) *Template {
 	res := &Template{image: i}
 
+	var magSquared float64
 	for x := 0; x < i.Width(); x++ {
 		for y := 0; y < i.Height(); y++ {
 			brightness := i.BrightnessValue(x, y)
-			res.magSquared += brightness * brightness
+			magSquared += brightness * brightness
 		}
 	}
-	res.magnitude = math.Sqrt(res.magSquared)
+	res.magnitude = math.Sqrt(magSquared)
+
+	remaining := magSquared
+	res.remainingMagSquared = make([]float64, i.Height())
+	for y := 0; y < i.Height(); y++ {
+		for x := 0; x < i.Width(); x++ {
+			brightness := i.BrightnessValue(x, y)
+			remaining -= brightness * brightness
+		}
+		res.remainingMagSquared[y] = remaining
+	}
 
 	return res
 }
@@ -94,18 +105,15 @@ func (t *Template) correlation(oldMag float64, img *Image, startX,
 	finalNormalization := 1.0 / (math.Sqrt(imgMag) * t.magnitude)
 
 	var dotProduct float64
-	remainingMagSquared := t.magSquared
 	remainingImgMagSquared := imgMag
 	for y := 0; y < t.image.Height(); y++ {
 		for x := 0; x < t.image.Width(); x++ {
 			imgPixel := img.BrightnessValue(startX+x, startY+y)
 			templatePixel := t.image.BrightnessValue(x, y)
 			dotProduct += imgPixel * templatePixel
-			remainingMagSquared -= templatePixel * templatePixel
 			remainingImgMagSquared -= imgPixel * imgPixel
 		}
-		optimalRemainingDot := math.Sqrt(remainingImgMagSquared/remainingMagSquared) *
-			remainingMagSquared
+		optimalRemainingDot := math.Sqrt(remainingImgMagSquared * t.remainingMagSquared[y])
 		if (dotProduct+optimalRemainingDot)*finalNormalization < threshold {
 			return
 		}
