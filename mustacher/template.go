@@ -32,8 +32,11 @@ func NewTemplate(i *Image) *Template {
 func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 	res := make(CorrelationSet, 0)
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
+		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
-			if corr := t.correlation(img, x, y); corr > threshold {
+			var corr float64
+			corr, oldMag = t.correlation(oldMag, img, x, y)
+			if corr > threshold {
 				res = append(res, &Correlation{
 					Template:    t,
 					Correlation: corr,
@@ -53,32 +56,52 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 func (t *Template) MaxCorrelation(img *Image) float64 {
 	var res float64
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
+		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
-			res = math.Max(res, t.correlation(img, x, y))
+			var corr float64
+			corr, oldMag = t.correlation(oldMag, img, x, y)
+			res = math.Max(res, corr)
 		}
 	}
 	return res
 }
 
-func (t *Template) correlation(img *Image, startX, startY int) float64 {
-	var imgSum float64
+func (t *Template) correlation(oldMag float64, img *Image, startX,
+	startY int) (corr float64, imgMag float64) {
+
+	imgMag = oldMag
+	if startX == 0 {
+		for y := 0; y < t.image.Height(); y++ {
+			for x := 0; x < t.image.Width(); x++ {
+				imgPixel := img.BrightnessValue(startX+x, startY+y)
+				imgMag += imgPixel * imgPixel
+			}
+		}
+	} else {
+		for y := 0; y < t.image.Height(); y++ {
+			imgPixel := img.BrightnessValue(startX-1, startY+y)
+			imgMag -= imgPixel * imgPixel
+			imgPixel = img.BrightnessValue(startX+t.image.Width()-1, startY+y)
+			imgMag += imgPixel * imgPixel
+		}
+	}
+
+	if imgMag == 0 || t.magnitude == 0 {
+		if imgMag == t.magnitude {
+			corr = 1
+		}
+		return
+	}
+
 	var dotProduct float64
 	for y := 0; y < t.image.Height(); y++ {
 		for x := 0; x < t.image.Width(); x++ {
 			imgPixel := img.BrightnessValue(startX+x, startY+y)
 			templatePixel := t.image.BrightnessValue(x, y)
-			imgSum += imgPixel * imgPixel
 			dotProduct += imgPixel * templatePixel
 		}
 	}
 
-	if imgSum == 0 || t.magnitude == 0 {
-		if imgSum == t.magnitude {
-			return 1
-		} else {
-			return 0
-		}
-	}
-
-	return dotProduct / (math.Sqrt(imgSum) * t.magnitude)
+	corr = dotProduct / (math.Sqrt(imgMag) * t.magnitude)
+	return
 }
