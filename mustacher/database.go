@@ -10,38 +10,52 @@ import (
 	"strings"
 )
 
-// A DatabaseEntry includes an image of a nose and a mouth, along with
-// information about where and how on that image a mustache should be
-// positioned.
-type DatabaseEntry struct {
-	Image          *Image
-	MustacheAngle  float64
-	MustacheCenter Coordinates
+const thresholdStrictness = 0.2
+
+type FloatCoordinates struct {
+	X float64
+	Y float64
 }
 
-// A DatabaseMatch reports the position of a DatabaseEntry which has
-// been located inside a larger image.
+// A trainingImage stores a training image's template and its metadata.
+type trainingImage struct {
+	template  *Template
+	angle     float64
+	center    FloatCoordinates
+	threshold float64
+}
+
+// A DatabaseMatch provides all the information needed to add a mustache
+// to an image.
 type DatabaseMatch struct {
-	Entry       *DatabaseEntry
-	Coordinates Coordinates
+	MouthWidth  float64
+	Rotation    float64
+	Center      FloatCoordinates
 	Correlation float64
 }
 
-// A Database is a collection of images that can be used to locate
-// mustache targets in images.
+// A Database represents a learned set of training images.
 type Database struct {
-	Entries []*DatabaseEntry
+	trainingImages          []*trainingImage
+	templateToTrainingImage map[*Template]*trainingImage
 }
 
 // ReadDatabase reads image files from a given directory and
 // parses their filenames for metadata.
 //
-// Image filenames should be of the form "N_X_Y_Ddeg.ext" where
-// N is any unique number for the database, X is the X coordinate
-// in pixels of the center of the mustache destination, Y is the
-// Y coordinate in pixels of the center of the mustache destination,
-// and D is an angle (in degrees) that the mustache should be
-// rotated clockwise.
+// An image file in the database can be one of two types:
+// a negative sample, an image with no facial features, or
+// a training sample, an image of a facial feature.
+//
+// Negative sample filenames should be of the form "negative_N.ext",
+// where N is any number.
+//
+// Training sample filenames should be of the form "N_X_Y_Ddeg.ext"
+// where N is any number, X and Y are the coordinates of the center of
+// the mustache destination relative to the top left corner of the sample
+// image, and D is an angle (in degrees) that the mustache should be
+// rotated (clockwise).
+//
 // The images must be PNG files or JPG files with the file extension
 // ".png" or ".jpg".
 func ReadDatabase(directory string) (db *Database, err error) {
@@ -49,88 +63,94 @@ func ReadDatabase(directory string) (db *Database, err error) {
 	if err != nil {
 		return
 	}
+
 	names, err := f.Readdirnames(0)
 	if err != nil {
 		return
 	}
 
-	expr := regexp.MustCompile("[0-9]*_([0-9]*)_([0-9]*)_([-0-9]*)deg")
-	res := &Database{Entries: make([]*DatabaseEntry, 0, len(names))}
+	res := &Database{
+		trainingImages:          make([]*trainingImage, 0, len(names)-1),
+		templateToTrainingImage: map[*Template]*trainingImage{},
+	}
+	negatives := make([]*Image, 0, len(names)-1)
+
+	trainingExpr := regexp.MustCompile("[0-9]*_([-0-9]*)_([-0-9]*)_([-0-9]*)deg\\.(jpg|png)")
+	negativeExpr := regexp.MustCompile("negative_[0-9]*\\.(jpg|png)")
 	for _, n := range names {
-		if !strings.HasSuffix(n, "png") && !strings.HasSuffix(n, "jpg") {
+		if strings.HasPrefix(n, ".") {
 			continue
 		}
-		match := expr.FindStringSubmatch(n)
-		if match == nil {
+
+		fullPath := filepath.Join(directory, n)
+		if trainingMatch := trainingExpr.FindStringSubmatch(n); trainingMatch != nil {
+			if err := res.addTrainingImage(trainingMatch, fullPath); err != nil {
+				return nil, err
+			}
+		} else if negativeExpr.MatchString(n) {
+			if img, err := ReadImageFile(fullPath); err != nil {
+				return nil, err
+			} else {
+				negatives = append(negatives, img)
+			}
+		} else {
 			return nil, errors.New("bad database filename: " + n)
 		}
-		mustacheLeft, _ := strconv.Atoi(match[1])
-		mustacheTop, _ := strconv.Atoi(match[2])
-		mustacheAngle, _ := strconv.Atoi(match[3])
-		image, err := ReadImageFile(filepath.Join(directory, n))
-		if err != nil {
-			return nil, err
+	}
+
+	for _, t := range res.trainingImages {
+		var maxCorrelation float64
+		for _, negative := range negatives {
+			maxCorrelation = math.Max(maxCorrelation, t.template.MaxCorrelation(negative))
 		}
-		entry := &DatabaseEntry{
-			Image:          image,
-			MustacheAngle:  float64(mustacheAngle),
-			MustacheCenter: Coordinates{X: float64(mustacheLeft), Y: float64(mustacheTop)},
-		}
-		res.Entries = append(res.Entries, entry)
+		t.threshold = 1*thresholdStrictness + (1-thresholdStrictness)*maxCorrelation
 	}
 
 	return res, nil
 }
 
-// Search looks through an Image to find potential matches against the
-// Database.
-// It automatically removes overlapping results by choosing the best match.
-//
-// The threshold parameter specifies the minimum correlation for a match to
-// be reported. At 0, it will report all possible matches, and at 1 it will report
-// only perfect matches.
-func (db *Database) Search(i *Image) []*DatabaseMatch {
-	res := []*DatabaseMatch{}
-	for _, entry := range db.Entries {
-		th := entry.Image.RecommendedThreshold()
-		for _, match := range i.CorrelationSearch(entry.Image, th) {
-			dbMatch := &DatabaseMatch{
-				Entry:       entry,
-				Coordinates: match.Coordinates,
-				Correlation: match.Correlation,
-			}
-			res = insertDbMatch(res, dbMatch)
+// Search finds mustache destinations in an image.
+// It removes overlapping results by choosing the best match.
+func (db *Database) Search(img *Image) []*DatabaseMatch {
+	correlationSet := CorrelationSet{}
+	for _, t := range db.trainingImages {
+		println("correlation", t.template.MaxCorrelation(img), "thresh", t.threshold)
+		correlations := t.template.Correlations(img, t.threshold)
+		correlationSet = append(correlationSet, correlations...)
+	}
+	correlationSet = correlationSet.NonOverlappingSet()
+	res := make([]*DatabaseMatch, len(correlationSet))
+	for i, correlation := range correlationSet {
+		t := db.templateToTrainingImage[correlation.Template]
+		center := FloatCoordinates{
+			X: float64(correlation.X) + t.center.X,
+			Y: float64(correlation.Y) + t.center.Y,
 		}
+		match := &DatabaseMatch{
+			MouthWidth:  float64(correlation.Template.image.Width()),
+			Rotation:    db.templateToTrainingImage[correlation.Template].angle,
+			Center:      center,
+			Correlation: correlation.Correlation,
+		}
+		res[i] = match
 	}
 	return res
 }
 
-func insertDbMatch(matches []*DatabaseMatch, match *DatabaseMatch) []*DatabaseMatch {
-	overrideMatches := map[int]bool{}
-	for i, m := range matches {
-		dx := math.Abs(m.Coordinates.X - match.Coordinates.X)
-		dy := math.Abs(m.Coordinates.Y - match.Coordinates.Y)
-		minWidth := math.Min(float64(m.Entry.Image.width), float64(match.Entry.Image.width))
-		minHeight := math.Min(float64(m.Entry.Image.height), float64(match.Entry.Image.height))
-		if dx <= minWidth/2 && dy <= minHeight/2 {
-			if match.Correlation > m.Correlation {
-				overrideMatches[i] = true
-			} else {
-				return matches
-			}
-		}
+func (db *Database) addTrainingImage(match []string, path string) error {
+	centerX, _ := strconv.Atoi(match[1])
+	centerY, _ := strconv.Atoi(match[2])
+	angle, _ := strconv.Atoi(match[3])
+	image, err := ReadImageFile(path)
+	if err != nil {
+		return err
 	}
-
-	if len(overrideMatches) == 0 {
-		return append(matches, match)
+	t := &trainingImage{
+		template: NewTemplate(image),
+		angle:    float64(angle),
+		center:   FloatCoordinates{X: float64(centerX), Y: float64(centerY)},
 	}
-
-	res := make([]*DatabaseMatch, 0, len(matches)-len(overrideMatches)+1)
-	for i, m := range matches {
-		if !overrideMatches[i] {
-			res = append(res, m)
-		}
-	}
-	res = append(res, match)
-	return res
+	db.trainingImages = append(db.trainingImages, t)
+	db.templateToTrainingImage[t.template] = t
+	return nil
 }

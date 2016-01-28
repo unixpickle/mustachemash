@@ -17,13 +17,6 @@ import (
 var AssetsPath string
 var MustacheDb *mustacher.Database
 
-type MustacheInfo struct {
-	CenterX    float64
-	CenterY    float64
-	Angle      float64
-	MouthWidth float64
-}
-
 func main() {
 	if len(os.Args) != 3 {
 		log.Fatal("Usage: mustachemash <mustache_db> <port>")
@@ -34,10 +27,12 @@ func main() {
 		log.Fatal("Invalid port: " + os.Args[2])
 	}
 
+	log.Println("Loading mustache DB...")
 	MustacheDb, err = mustacher.ReadDatabase(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("DB loaded.")
 
 	// Setup global variables
 	_, sourcePath, _, _ := runtime.Caller(0)
@@ -66,16 +61,7 @@ func HandleMustache(w http.ResponseWriter, r *http.Request) {
 	}
 
 	matches := MustacheDb.Search(img)
-	infos := make([]*MustacheInfo, len(matches))
-	for i, match := range matches {
-		infos[i] = &MustacheInfo{
-			CenterX:    match.Coordinates.X + match.Entry.MustacheCenter.X,
-			CenterY:    match.Coordinates.Y + match.Entry.MustacheCenter.Y,
-			Angle:      match.Entry.MustacheAngle,
-			MouthWidth: float64(match.Entry.Image.Width()),
-		}
-	}
-	jsonData, _ := json.Marshal(infos)
+	jsonData, _ := json.Marshal(matches)
 
 	page, _ := ioutil.ReadFile(filepath.Join(AssetsPath, "mustache.html"))
 	pageStr := strings.Replace(string(page), "INFOS", string(jsonData), 1)
