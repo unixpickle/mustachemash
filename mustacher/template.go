@@ -5,24 +5,22 @@ import "math"
 // A Template is a two-dimensional representation of an object
 // which can be matched against parts of a larger image.
 type Template struct {
-	image     *Image
-	magnitude float64
-	valueSum  float64
+	image      *Image
+	magnitude  float64
+	magSquared float64
 }
 
 // NewTemplate generates a template from a training image.
 func NewTemplate(i *Image) *Template {
 	res := &Template{image: i}
 
-	var magSquared float64
 	for x := 0; x < i.Width(); x++ {
 		for y := 0; y < i.Height(); y++ {
 			brightness := i.BrightnessValue(x, y)
-			res.valueSum += brightness
-			magSquared += brightness * brightness
+			res.magSquared += brightness * brightness
 		}
 	}
-	res.magnitude = math.Sqrt(magSquared)
+	res.magnitude = math.Sqrt(res.magSquared)
 
 	return res
 }
@@ -35,7 +33,7 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
 			var corr float64
-			corr, oldMag = t.correlation(oldMag, img, x, y)
+			corr, oldMag = t.correlation(oldMag, img, x, y, threshold)
 			if corr > threshold {
 				res = append(res, &Correlation{
 					Template:    t,
@@ -59,7 +57,7 @@ func (t *Template) MaxCorrelation(img *Image) float64 {
 		var oldMag float64
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
 			var corr float64
-			corr, oldMag = t.correlation(oldMag, img, x, y)
+			corr, oldMag = t.correlation(oldMag, img, x, y, res)
 			res = math.Max(res, corr)
 		}
 	}
@@ -67,7 +65,7 @@ func (t *Template) MaxCorrelation(img *Image) float64 {
 }
 
 func (t *Template) correlation(oldMag float64, img *Image, startX,
-	startY int) (corr float64, imgMag float64) {
+	startY int, threshold float64) (corr float64, imgMag float64) {
 
 	imgMag = oldMag
 	if startX == 0 {
@@ -93,15 +91,26 @@ func (t *Template) correlation(oldMag float64, img *Image, startX,
 		return
 	}
 
+	finalNormalization := 1.0 / (math.Sqrt(imgMag) * t.magnitude)
+
 	var dotProduct float64
+	remainingMagSquared := t.magSquared
+	remainingImgMagSquared := imgMag
 	for y := 0; y < t.image.Height(); y++ {
 		for x := 0; x < t.image.Width(); x++ {
 			imgPixel := img.BrightnessValue(startX+x, startY+y)
 			templatePixel := t.image.BrightnessValue(x, y)
 			dotProduct += imgPixel * templatePixel
+			remainingMagSquared -= templatePixel * templatePixel
+			remainingImgMagSquared -= imgPixel * imgPixel
+		}
+		optimalRemainingDot := math.Sqrt(remainingImgMagSquared/remainingMagSquared) *
+			remainingMagSquared
+		if (dotProduct+optimalRemainingDot)*finalNormalization < threshold {
+			return
 		}
 	}
 
-	corr = dotProduct / (math.Sqrt(imgMag) * t.magnitude)
+	corr = dotProduct * finalNormalization
 	return
 }
