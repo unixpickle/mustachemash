@@ -114,7 +114,6 @@ func ReadDatabase(directory string) (db *Database, err error) {
 func (db *Database) Search(img *Image) []*DatabaseMatch {
 	correlationSet := CorrelationSet{}
 	for _, t := range db.trainingImages {
-		println("correlation", t.template.MaxCorrelation(img), "thresh", t.threshold)
 		correlations := t.template.Correlations(img, t.threshold)
 		correlationSet = append(correlationSet, correlations...)
 	}
