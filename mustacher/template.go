@@ -5,8 +5,10 @@ import "math"
 // A Template is a two-dimensional representation of an object
 // which can be matched against parts of a larger image.
 type Template struct {
-	image               *Image
-	magnitude           float64
+	image     *Image
+	magnitude float64
+
+	// See RemainingMagSquared in subregionInfo for info on this field.
 	remainingMagSquared []float64
 }
 
@@ -40,12 +42,11 @@ func NewTemplate(i *Image) *Template {
 // template has a correlation above a given threshold.
 func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 	res := make(CorrelationSet, 0)
-	remMagSquared := make([]float64, t.image.Height())
+	subregionInfo := newSubregionInfo(t.image.Width(), t.image.Height())
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
-		var oldMag float64
+		subregionInfo.StartNewRow(img, y)
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
-			var corr float64
-			corr, oldMag = t.correlation(oldMag, remMagSquared, img, x, y, threshold)
+			corr := t.correlation(subregionInfo, img, threshold)
 			if corr > threshold {
 				res = append(res, &Correlation{
 					Template:    t,
@@ -54,6 +55,7 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 					Y:           y,
 				})
 			}
+			subregionInfo.Roll(img)
 		}
 	}
 	return res
@@ -64,69 +66,106 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 // If the image contains close matches to the template,
 // the returned value will be close to 1.
 func (t *Template) MaxCorrelation(img *Image) float64 {
-	remMagSquared := make([]float64, t.image.Height())
 	var res float64
+	subregionInfo := newSubregionInfo(t.image.Width(), t.image.Height())
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
-		var oldMag float64
+		subregionInfo.StartNewRow(img, y)
 		for x := 0; x < img.Width()-t.image.Width(); x++ {
-			var corr float64
-			corr, oldMag = t.correlation(oldMag, remMagSquared, img, x, y, res)
+			corr := t.correlation(subregionInfo, img, res)
 			res = math.Max(res, corr)
+			subregionInfo.Roll(img)
 		}
 	}
 	return res
 }
 
-func (t *Template) correlation(oldMag float64, oldRemMagSquared []float64, img *Image,
-	startX, startY int, threshold float64) (corr float64, imgMag float64) {
-
-	imgMag = oldMag
-	if startX == 0 {
-		for y := t.image.Height() - 1; y >= 0; y-- {
-			oldRemMagSquared[y] = imgMag
-			for x := 0; x < t.image.Width(); x++ {
-				imgPixel := img.BrightnessValue(startX+x, startY+y)
-				imgMag += imgPixel * imgPixel
-			}
+func (t *Template) correlation(region *subregionInfo, img *Image, threshold float64) float64 {
+	if region.MagSquared == 0 || t.magnitude == 0 {
+		if region.MagSquared == t.magnitude {
+			// Let's just say that two zero vectors are perfectly correlated.
+			return 1
 		}
-	} else {
-		var compoundedChange float64
-		for y := t.image.Height() - 1; y >= 0; y-- {
-			oldRemMagSquared[y] += compoundedChange
-
-			var change float64
-			imgPixel := img.BrightnessValue(startX-1, startY+y)
-			change -= imgPixel * imgPixel
-			imgPixel = img.BrightnessValue(startX+t.image.Width()-1, startY+y)
-			change += imgPixel * imgPixel
-
-			imgMag += change
-			compoundedChange += change
-		}
+		return 0
 	}
 
-	if imgMag == 0 || t.magnitude == 0 {
-		if imgMag == t.magnitude {
-			corr = 1
-		}
-		return
-	}
-
-	finalNormalization := 1.0 / (math.Sqrt(imgMag) * t.magnitude)
+	finalNormalization := 1.0 / (math.Sqrt(region.MagSquared) * t.magnitude)
 
 	var dotProduct float64
 	for y := 0; y < t.image.Height(); y++ {
 		for x := 0; x < t.image.Width(); x++ {
-			imgPixel := img.BrightnessValue(startX+x, startY+y)
+			imgPixel := img.BrightnessValue(region.X+x, region.Y+y)
 			templatePixel := t.image.BrightnessValue(x, y)
 			dotProduct += imgPixel * templatePixel
 		}
-		optimalRemainingDot := math.Sqrt(oldRemMagSquared[y] * t.remainingMagSquared[y])
+		optimalRemainingDot := math.Sqrt(region.RemainingMagSquared[y] * t.remainingMagSquared[y])
 		if (dotProduct+optimalRemainingDot)*finalNormalization < threshold {
-			return
+			return 0
 		}
 	}
 
-	corr = dotProduct * finalNormalization
-	return
+	return dotProduct * finalNormalization
+}
+
+// subregionInfo stores information about a subregion of an image.
+// This information can be "rolled" to an adjacent subregion, meaning
+// that an imageSubregionInfo can be updated for the "next" subregion
+// without recomputing everything.
+type subregionInfo struct {
+	width  int
+	height int
+
+	X int
+	Y int
+
+	// MagSquared is the sum of the squares of the brightness values
+	// in the current subregion.
+	MagSquared float64
+
+	// RemainingMagSquared maps y values to magnitudes.
+	// The y-th entry is equal to magSquared minus the sum of the
+	// squares of the pixel values of the first (y+1) rows of the
+	// subregion.
+	RemainingMagSquared []float64
+}
+
+func newSubregionInfo(width, height int) *subregionInfo {
+	return &subregionInfo{
+		width:  width,
+		height: height,
+
+		RemainingMagSquared: make([]float64, height),
+	}
+}
+
+// StartNewRow computes completely fresh values for the leftmost
+// subregion at the given y coordinate.
+func (c *subregionInfo) StartNewRow(img *Image, newY int) {
+	c.MagSquared = 0
+	c.X = 0
+	c.Y = newY
+	for y := c.height - 1; y >= 0; y-- {
+		c.RemainingMagSquared[y] = c.MagSquared
+		for x := 0; x < c.width; x++ {
+			imgPixel := img.BrightnessValue(x, newY+y)
+			c.MagSquared += imgPixel * imgPixel
+		}
+	}
+}
+
+// Roll computes the info for the subregion to the right of the current one.
+func (c *subregionInfo) Roll(img *Image) {
+	c.X++
+	var compoundedChange float64
+	for y := c.height - 1; y >= 0; y-- {
+		c.RemainingMagSquared[y] += compoundedChange
+
+		var change float64
+		imgPixel := img.BrightnessValue(c.X-1, c.Y+y)
+		change -= imgPixel * imgPixel
+		imgPixel = img.BrightnessValue(c.X+c.width-1, c.Y+y)
+		change += imgPixel * imgPixel
+
+		compoundedChange += change
+	}
+	c.MagSquared += compoundedChange
 }
