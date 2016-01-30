@@ -19,7 +19,7 @@ func DrawMustaches(img image.Image, info []*DatabaseMatch) image.Image {
 		ctx.Save()
 		ctx.Translate(mustacheInfo.Center.X, mustacheInfo.Center.Y)
 		ctx.Rotate(mustacheInfo.Rotation * math.Pi / 180)
-		drawMustache(ctx, mustacheInfo.MouthWidth*2)
+		drawMustache(ctx, mustacheInfo.Width)
 		ctx.Restore()
 	}
 	return newImage

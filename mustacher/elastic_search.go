@@ -2,6 +2,7 @@ package mustacher
 
 import (
 	"image"
+	"math"
 	"sort"
 
 	"github.com/nfnt/resize"
@@ -38,7 +39,7 @@ func ElasticSearch(d *Database, img image.Image, sizes []int) []*DatabaseMatch {
 		}
 		subMatches := d.Search(NewImage(scaledImage))
 		for _, match := range subMatches {
-			match.MouthWidth /= scale
+			match.Width /= scale
 			match.Center.X /= scale
 			match.Center.Y /= scale
 		}
@@ -54,7 +55,8 @@ func removeNearDuplicateMatches(m []*DatabaseMatch) []*DatabaseMatch {
 MatchLoop:
 	for _, match := range m {
 		for _, existingMatch := range res {
-			if match.Center.Distance(existingMatch.Center) < match.MouthWidth {
+			minDistance := math.Max(match.Width/2, existingMatch.Width/2)
+			if match.Center.Distance(existingMatch.Center) < minDistance {
 				continue MatchLoop
 			}
 		}

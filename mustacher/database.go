@@ -24,18 +24,22 @@ func (f FloatCoordinates) Distance(f1 FloatCoordinates) float64 {
 // A trainingImage stores a training image's template and its metadata.
 type trainingImage struct {
 	template  *Template
+	id        int
 	angle     float64
 	center    FloatCoordinates
+	width     float64
 	threshold float64
 }
 
 // A DatabaseMatch provides all the information needed to add a mustache
 // to an image.
 type DatabaseMatch struct {
-	MouthWidth  float64
-	Rotation    float64
-	Center      FloatCoordinates
+	TrainingID  int
 	Correlation float64
+
+	Width    float64
+	Rotation float64
+	Center   FloatCoordinates
 }
 
 // A Database represents a learned set of training images.
@@ -54,11 +58,11 @@ type Database struct {
 // Negative sample filenames should be of the form "negative_N.ext",
 // where N is any number.
 //
-// Training sample filenames should be of the form "N_X_Y_Ddeg.ext"
+// Training sample filenames should be of the form "N_X_Y_Ddeg_W.ext"
 // where N is any number, X and Y are the coordinates of the center of
 // the mustache destination relative to the top left corner of the sample
-// image, and D is an angle (in degrees) that the mustache should be
-// rotated (clockwise).
+// image, D is an angle (in degrees) that the mustache should be rotated
+// rotated (clockwise), and W is the width of the mustache.
 //
 // The images must be PNG files or JPG files with the file extension
 // ".png" or ".jpg".
@@ -79,7 +83,8 @@ func ReadDatabase(directory string) (db *Database, err error) {
 	}
 	negatives := make([]*Image, 0, len(names)-1)
 
-	trainingExpr := regexp.MustCompile("[0-9]*_([-0-9]*)_([-0-9]*)_([-0-9]*)deg\\.(jpg|png)")
+	trainingExpr := regexp.MustCompile("([0-9]*)_([-0-9]*)_([-0-9]*)_([-0-9]*)deg_" +
+		"([0-9]*)\\.(jpg|png)")
 	negativeExpr := regexp.MustCompile("negative_[0-9]*\\.(jpg|png)")
 	for _, n := range names {
 		if strings.HasPrefix(n, ".") {
@@ -129,11 +134,14 @@ func (db *Database) Search(img *Image) []*DatabaseMatch {
 			X: float64(correlation.X) + t.center.X,
 			Y: float64(correlation.Y) + t.center.Y,
 		}
+		ti := db.templateToTrainingImage[correlation.Template]
 		match := &DatabaseMatch{
-			MouthWidth:  float64(correlation.Template.image.Width()),
-			Rotation:    db.templateToTrainingImage[correlation.Template].angle,
-			Center:      center,
+			TrainingID:  ti.id,
 			Correlation: correlation.Correlation,
+
+			Width:    ti.width,
+			Rotation: ti.angle,
+			Center:   center,
 		}
 		res[i] = match
 	}
@@ -141,9 +149,11 @@ func (db *Database) Search(img *Image) []*DatabaseMatch {
 }
 
 func (db *Database) addTrainingImage(match []string, path string) error {
-	centerX, _ := strconv.Atoi(match[1])
-	centerY, _ := strconv.Atoi(match[2])
-	angle, _ := strconv.Atoi(match[3])
+	id, _ := strconv.Atoi(match[1])
+	centerX, _ := strconv.Atoi(match[2])
+	centerY, _ := strconv.Atoi(match[3])
+	angle, _ := strconv.Atoi(match[4])
+	width, _ := strconv.Atoi(match[5])
 	image, err := ReadImageFile(path)
 	if err != nil {
 		return err
@@ -152,6 +162,8 @@ func (db *Database) addTrainingImage(match []string, path string) error {
 		template: NewTemplate(image),
 		angle:    float64(angle),
 		center:   FloatCoordinates{X: float64(centerX), Y: float64(centerY)},
+		width:    float64(width),
+		id:       id,
 	}
 	db.trainingImages = append(db.trainingImages, t)
 	db.templateToTrainingImage[t.template] = t
