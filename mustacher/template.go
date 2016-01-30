@@ -41,6 +41,10 @@ func NewTemplate(i *Image) *Template {
 // Correlations returns all places in an image where the
 // template has a correlation above a given threshold.
 func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
+	if t.image.Width() > img.Width() || t.image.Height() > img.Height() {
+		return CorrelationSet{}
+	}
+
 	res := make(CorrelationSet, 0)
 	subregionInfo := newSubregionInfo(t.image.Width(), t.image.Height())
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
@@ -66,6 +70,10 @@ func (t *Template) Correlations(img *Image, threshold float64) CorrelationSet {
 // If the image contains close matches to the template,
 // the returned value will be close to 1.
 func (t *Template) MaxCorrelation(img *Image) float64 {
+	if t.image.Width() > img.Width() || t.image.Height() > img.Height() {
+		return 0
+	}
+
 	var res float64
 	subregionInfo := newSubregionInfo(t.image.Width(), t.image.Height())
 	for y := 0; y < img.Height()-t.image.Height(); y++ {
