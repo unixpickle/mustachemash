@@ -19,6 +19,28 @@ type Image struct {
 	brightnessValues []float64
 }
 
+// NewImage creates an Image from an image.Image.
+// The returned image will not reference the passed image.
+func NewImage(i image.Image) *Image {
+	bounds := i.Bounds()
+	res := &Image{
+		width:            bounds.Dx(),
+		height:           bounds.Dy(),
+		brightnessValues: make([]float64, 0, bounds.Dx()*bounds.Dy()),
+	}
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			color := i.At(x, y)
+			r, g, b, _ := color.RGBA()
+			num := float64(r+g+b) / (0xffff * 3)
+			res.brightnessValues = append(res.brightnessValues, num)
+		}
+	}
+
+	return res
+}
+
 // ReadImageFile decodes an image file at a given path.
 func ReadImageFile(path string) (res *Image, err error) {
 	reader, err := os.Open(path)
@@ -35,24 +57,7 @@ func ReadImage(reader io.Reader) (res *Image, err error) {
 	if err != nil {
 		return
 	}
-
-	bounds := decoded.Bounds()
-	res = &Image{
-		width:            bounds.Dx(),
-		height:           bounds.Dy(),
-		brightnessValues: make([]float64, 0, bounds.Dx()*bounds.Dy()),
-	}
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			color := decoded.At(x, y)
-			r, g, b, _ := color.RGBA()
-			num := float64(r+g+b) / (0xffff * 3)
-			res.brightnessValues = append(res.brightnessValues, num)
-		}
-	}
-
-	return
+	return NewImage(decoded), nil
 }
 
 // BrightnessValue returns the brightness value at x and y coordinates.

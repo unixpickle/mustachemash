@@ -17,6 +17,10 @@ type FloatCoordinates struct {
 	Y float64
 }
 
+func (f FloatCoordinates) Distance(f1 FloatCoordinates) float64 {
+	return math.Sqrt(math.Pow(f1.X-f.X, 2) + math.Pow(f1.Y-f.Y, 2))
+}
+
 // A trainingImage stores a training image's template and its metadata.
 type trainingImage struct {
 	template  *Template
