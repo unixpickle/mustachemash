@@ -28,7 +28,7 @@ func main() {
 	}
 
 	log.Println("Loading mustache DB...")
-	MustacheDb, err = mustacher.ReadDatabase(os.Args[1])
+	MustacheDb, err = mustacher.ReadDatabase(os.Args[1], 0.2)
 	if err != nil {
 		log.Fatal(err)
 	}

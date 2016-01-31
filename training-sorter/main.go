@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := mustacher.ReadDatabase(os.Args[1])
+	db, err := mustacher.ReadDatabase(os.Args[1], 0.2)
 	if err != nil {
 		printErrors(err)
 		os.Exit(1)

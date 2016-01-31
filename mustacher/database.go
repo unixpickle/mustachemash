@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-const thresholdStrictness = 0.2
-
 type FloatCoordinates struct {
 	X float64
 	Y float64
@@ -66,7 +64,13 @@ type Database struct {
 //
 // The images must be PNG files or JPG files with the file extension
 // ".png" or ".jpg".
-func ReadDatabase(directory string) (db *Database, err error) {
+//
+// The strictness argument determines how the database will use its
+// negative samples. If strictness is 0.0, then anything that matches
+// even a little more than the negative samples will be reported.
+// On the other hand, if strictness is 1.0, then nothing will be
+// reported at all.
+func ReadDatabase(directory string, strictness float64) (db *Database, err error) {
 	f, err := os.Open(directory)
 	if err != nil {
 		return
@@ -112,7 +116,7 @@ func ReadDatabase(directory string) (db *Database, err error) {
 		for _, negative := range negatives {
 			maxCorrelation = math.Max(maxCorrelation, t.template.MaxCorrelation(negative))
 		}
-		t.threshold = 1*thresholdStrictness + (1-thresholdStrictness)*maxCorrelation
+		t.threshold = 1*strictness + (1-strictness)*maxCorrelation
 	}
 
 	return res, nil
