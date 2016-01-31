@@ -49,6 +49,16 @@ type Database struct {
 // ReadDatabase reads image files from a given directory and
 // parses their filenames for metadata.
 //
+// The strictness argument determines how the database will use its
+// negative samples. If strictness is 0.0, then anything that matches
+// even a little more than the negative samples will be reported.
+// On the other hand, if strictness is 1.0, then nothing will be
+// reported at all.
+//
+// If the mirror argument is set to true, then this will automatically
+// generate a second, flipped training sample for every sample.
+// The flipped sample will have a negated angle and mirrored X offset.
+//
 // An image file in the database can be one of two types:
 // a negative sample, an image with no facial features, or
 // a training sample, an image of a facial feature.
@@ -64,13 +74,7 @@ type Database struct {
 //
 // The images must be PNG files or JPG files with the file extension
 // ".png" or ".jpg".
-//
-// The strictness argument determines how the database will use its
-// negative samples. If strictness is 0.0, then anything that matches
-// even a little more than the negative samples will be reported.
-// On the other hand, if strictness is 1.0, then nothing will be
-// reported at all.
-func ReadDatabase(directory string, strictness float64) (db *Database, err error) {
+func ReadDatabase(directory string, strictness float64, mirror bool) (db *Database, err error) {
 	f, err := os.Open(directory)
 	if err != nil {
 		return
@@ -97,7 +101,7 @@ func ReadDatabase(directory string, strictness float64) (db *Database, err error
 
 		fullPath := filepath.Join(directory, n)
 		if trainingMatch := trainingExpr.FindStringSubmatch(n); trainingMatch != nil {
-			if err := res.addTrainingImage(trainingMatch, fullPath); err != nil {
+			if err := res.addTrainingImage(trainingMatch, fullPath, mirror); err != nil {
 				return nil, err
 			}
 		} else if negativeExpr.MatchString(n) {
@@ -152,7 +156,7 @@ func (db *Database) Search(img *Image) []*DatabaseMatch {
 	return res
 }
 
-func (db *Database) addTrainingImage(match []string, path string) error {
+func (db *Database) addTrainingImage(match []string, path string, mirror bool) error {
 	id, _ := strconv.Atoi(match[1])
 	centerX, _ := strconv.Atoi(match[2])
 	centerY, _ := strconv.Atoi(match[3])
@@ -162,6 +166,7 @@ func (db *Database) addTrainingImage(match []string, path string) error {
 	if err != nil {
 		return err
 	}
+
 	t := &trainingImage{
 		template: NewTemplate(image),
 		angle:    float64(angle),
@@ -171,5 +176,18 @@ func (db *Database) addTrainingImage(match []string, path string) error {
 	}
 	db.trainingImages = append(db.trainingImages, t)
 	db.templateToTrainingImage[t.template] = t
+
+	if mirror {
+		t = &trainingImage{
+			template: NewTemplate(image.Mirror()),
+			angle:    -float64(angle),
+			center:   FloatCoordinates{X: float64(width - centerX), Y: float64(centerY)},
+			width:    float64(width),
+			id:       -id,
+		}
+		db.trainingImages = append(db.trainingImages, t)
+		db.templateToTrainingImage[t.template] = t
+	}
+
 	return nil
 }

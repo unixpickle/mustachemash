@@ -74,3 +74,20 @@ func (i *Image) Width() int {
 func (i *Image) Height() int {
 	return i.height
 }
+
+// Mirror returns the mirror image of this image.
+func (i *Image) Mirror() *Image {
+	res := &Image{
+		width:            i.width,
+		height:           i.height,
+		brightnessValues: make([]float64, len(i.brightnessValues)),
+	}
+	valueIdx := 0
+	for y := 0; y < i.height; y++ {
+		for x := 0; x < i.width; x++ {
+			res.brightnessValues[valueIdx] = i.BrightnessValue(i.width-(x+1), y)
+			valueIdx++
+		}
+	}
+	return res
+}
