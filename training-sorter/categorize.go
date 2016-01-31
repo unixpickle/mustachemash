@@ -23,7 +23,7 @@ var (
 	Negative      Category = "negative"
 )
 
-func CategorizeImage(path string, db *mustacher.Database) (Category, error) {
+func CategorizeImage(path string, dbs []*mustacher.Database) (Category, error) {
 	nameExpr := regexp.MustCompile("^([0-9]*)_([0-9]*)_([0-9]*).(jpg|png|jpeg)$")
 	match := nameExpr.FindStringSubmatch(filepath.Base(path))
 	if match == nil {
@@ -44,7 +44,13 @@ func CategorizeImage(path string, db *mustacher.Database) (Category, error) {
 		return "", err
 	}
 
-	matches := mustacher.ElasticSearch(db, img, nil)
+	dbMatches := make([][]*mustacher.DatabaseMatch, len(dbs))
+	for i, db := range dbs {
+		dbMatches[i] = mustacher.ElasticSearch(db, img, nil)
+	}
+
+	matches := crossCheckMatches(dbMatches)
+
 	hasFalsePositive := len(matches) > 1
 	hasTruePositive := false
 	for _, match := range matches {
@@ -65,4 +71,24 @@ func CategorizeImage(path string, db *mustacher.Database) (Category, error) {
 	} else {
 		return Negative, nil
 	}
+}
+
+func crossCheckMatches(matches [][]*mustacher.DatabaseMatch) []*mustacher.DatabaseMatch {
+	res := make([]*mustacher.DatabaseMatch, len(matches[0]))
+	copy(res, matches[0])
+
+	for _, matchList := range matches {
+	MatchLoop:
+		for _, match := range matchList {
+			for _, existingMatch := range res {
+				minDistance := math.Max(match.Width/2, existingMatch.Width/2)
+				if match.Center.Distance(existingMatch.Center) < minDistance {
+					continue MatchLoop
+				}
+			}
+			res = append(res, match)
+		}
+	}
+
+	return res
 }

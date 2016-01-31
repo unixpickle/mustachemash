@@ -10,12 +10,12 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		printErrors("Usage: training-sorter <database> <sort dir>",
+	if len(os.Args) < 3 {
+		printErrors("Usage: training-sorter <sort dir> db1 [db2 ...]",
 			"",
-			"training-sorter runs many images against a template",
-			"database and separates the ones that work from the",
-			"ones that don't.",
+			"training-sorter runs many images against template",
+			"databases and separates the ones that work from the ones",
+			"that don't.",
 			"",
 			"At first, the sort directory may just contain a bunch of",
 			"images; this will create directories to sort them into.",
@@ -26,19 +26,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := mustacher.ReadDatabase(os.Args[1], 0.2)
+	imageFiles, err := findImageFiles(os.Args[1])
 	if err != nil {
 		printErrors(err)
 		os.Exit(1)
 	}
 
-	imageFiles, err := findImageFiles(os.Args[2])
-	if err != nil {
-		printErrors(err)
-		os.Exit(1)
+	databases := make([]*mustacher.Database, len(os.Args)-2)
+	for i := 2; i < len(os.Args); i++ {
+		db, err := mustacher.ReadDatabase(os.Args[i], 0.2)
+		if err != nil {
+			printErrors(err)
+			os.Exit(1)
+		}
+		databases[i-2] = db
 	}
 
-	SortImages(os.Args[2], imageFiles, db)
+	SortImages(os.Args[1], imageFiles, databases)
 }
 
 func printErrors(errors ...interface{}) {

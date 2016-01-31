@@ -10,7 +10,7 @@ import (
 	"github.com/unixpickle/mustachemash/mustacher"
 )
 
-func SortImages(basePath string, paths []string, db *mustacher.Database) {
+func SortImages(basePath string, paths []string, dbs []*mustacher.Database) {
 	log.Println("Sorting...")
 
 	pathChan := make(chan string, len(paths))
@@ -22,17 +22,17 @@ func SortImages(basePath string, paths []string, db *mustacher.Database) {
 	wg := &sync.WaitGroup{}
 	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 		wg.Add(1)
-		go SortImageRoutine(basePath, db, pathChan, wg)
+		go SortImageRoutine(basePath, dbs, pathChan, wg)
 	}
 
 	wg.Wait()
 }
 
-func SortImageRoutine(basePath string, db *mustacher.Database, ch <-chan string,
+func SortImageRoutine(basePath string, dbs []*mustacher.Database, ch <-chan string,
 	wg *sync.WaitGroup) {
 	defer wg.Done()
 	for path := range ch {
-		category, err := CategorizeImage(path, db)
+		category, err := CategorizeImage(path, dbs)
 		if err != nil {
 			log.Println("Error:", err)
 			continue
