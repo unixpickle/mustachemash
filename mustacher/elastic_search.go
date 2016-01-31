@@ -12,7 +12,8 @@ import (
 // This does not contain any particularly large sizes, because faces
 // can usually be found in smaller images with no problems but better
 // performance.
-var SmallElasticSizes = []int{400, 370, 340, 310, 280, 250, 220, 190, 150, 120, 90}
+var SmallElasticSizes = []int{400, 370, 340, 310, 280, 250,
+	220, 205, 190, 175, 160, 145, 130, 115, 100, 85}
 
 // ElasticSearch finds results from a database, but unlike
 // Database.Search(), it tries the search for a bunch of
