@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"image"
 	"image/png"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -13,11 +15,10 @@ import (
 
 func main() {
 	filterFlag := flag.Bool("filter", true, "filter near matches")
-	sensitivityFlag := flag.Float64("sensitivity", 0.2, "db threshold sensitivity")
 	flag.Parse()
 
 	if len(flag.Args()) < 2 {
-		fmt.Fprintln(os.Stderr, "Usage: mustacher-cmd [flags] <image> db1 [db2 ...]")
+		fmt.Fprintln(os.Stderr, "Usage: mustacher-cmd [flags] <image> db1.json [db2.json ...]")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -37,12 +38,16 @@ func main() {
 
 	dbs := make([]*mustacher.Database, len(flag.Args())-1)
 	for i := range dbs {
-		dbs[i], err = mustacher.LoadDatabase(flag.Args()[i+1], *sensitivityFlag)
+		contents, err := ioutil.ReadFile(flag.Args()[i+1])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		dbs[i].AddMirrors()
+		dbs[i] = &mustacher.Database{}
+		if err := json.Unmarshal(contents, dbs[i]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 
 	matches := mustacher.MatchSet{}
