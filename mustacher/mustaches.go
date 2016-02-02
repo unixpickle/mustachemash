@@ -10,16 +10,16 @@ import (
 )
 
 // DrawMustaches generates a new image with graphical mustaches
-// drawn at every DatabaseMatch specified.
-func DrawMustaches(img image.Image, info []*DatabaseMatch) image.Image {
+// drawn at every match in a set.
+func DrawMustaches(img image.Image, matches MatchSet) image.Image {
 	newImage := image.NewRGBA(image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy()))
 	ctx := draw2dimg.NewGraphicContext(newImage)
 	ctx.DrawImage(img)
-	for _, mustacheInfo := range info {
+	for _, match := range matches {
 		ctx.Save()
-		ctx.Translate(mustacheInfo.Center.X, mustacheInfo.Center.Y)
-		ctx.Rotate(mustacheInfo.Rotation * math.Pi / 180)
-		drawMustache(ctx, mustacheInfo.Width)
+		ctx.Translate(match.Center.X, match.Center.Y)
+		ctx.Rotate(match.Template.TargetAngle * math.Pi / 180)
+		drawMustache(ctx, match.Template.TargetWidth)
 		ctx.Restore()
 	}
 	return newImage

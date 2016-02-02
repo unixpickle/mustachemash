@@ -2,21 +2,20 @@ package mustacher
 
 import (
 	"image"
-	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
 	"os"
 )
 
-// An Image represents a black and white rectangular image.
+// An Image stores a black and white raster image.
 type Image struct {
-	width  int
-	height int
+	Width  int `json:"width"`
+	Height int `json:"height"`
 
-	// brightnessValues go from left to right, then top to bottom.
+	// BrightnessValues go from left to right, then top to bottom.
 	// Each brightness value ranges from 0 (black) to 1 (white).
-	brightnessValues []float64
+	BrightnessValues []float64 `json:"brightness_values"`
 }
 
 // NewImage creates an Image from an image.Image.
@@ -24,9 +23,9 @@ type Image struct {
 func NewImage(i image.Image) *Image {
 	bounds := i.Bounds()
 	res := &Image{
-		width:            bounds.Dx(),
-		height:           bounds.Dy(),
-		brightnessValues: make([]float64, 0, bounds.Dx()*bounds.Dy()),
+		Width:            bounds.Dx(),
+		Height:           bounds.Dy(),
+		BrightnessValues: make([]float64, 0, bounds.Dx()*bounds.Dy()),
 	}
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
@@ -34,7 +33,7 @@ func NewImage(i image.Image) *Image {
 			color := i.At(x, y)
 			r, g, b, _ := color.RGBA()
 			num := float64(r+g+b) / (0xffff * 3)
-			res.brightnessValues = append(res.brightnessValues, num)
+			res.BrightnessValues = append(res.BrightnessValues, num)
 		}
 	}
 
@@ -62,30 +61,20 @@ func ReadImage(reader io.Reader) (res *Image, err error) {
 
 // BrightnessValue returns the brightness value at x and y coordinates.
 func (i *Image) BrightnessValue(x, y int) float64 {
-	return i.brightnessValues[x+y*i.width]
-}
-
-// Width returns the width of the image in pixels.
-func (i *Image) Width() int {
-	return i.width
-}
-
-// Height returns the width of the image in pixels.
-func (i *Image) Height() int {
-	return i.height
+	return i.BrightnessValues[x+y*i.Width]
 }
 
 // Mirror returns the mirror image of this image.
 func (i *Image) Mirror() *Image {
 	res := &Image{
-		width:            i.width,
-		height:           i.height,
-		brightnessValues: make([]float64, len(i.brightnessValues)),
+		Width:            i.Width,
+		Height:           i.Height,
+		BrightnessValues: make([]float64, len(i.BrightnessValues)),
 	}
 	valueIdx := 0
-	for y := 0; y < i.height; y++ {
-		for x := 0; x < i.width; x++ {
-			res.brightnessValues[valueIdx] = i.BrightnessValue(i.width-(x+1), y)
+	for y := 0; y < i.Height; y++ {
+		for x := 0; x < i.Width; x++ {
+			res.BrightnessValues[valueIdx] = i.BrightnessValue(i.Width-(x+1), y)
 			valueIdx++
 		}
 	}

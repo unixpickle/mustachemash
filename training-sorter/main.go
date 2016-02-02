@@ -34,7 +34,8 @@ func main() {
 
 	databases := make([]*mustacher.Database, len(os.Args)-2)
 	for i := 2; i < len(os.Args); i++ {
-		db, err := mustacher.ReadDatabase(os.Args[i], 0.2, true)
+		db, err := mustacher.LoadDatabase(os.Args[i], 0.2)
+		db.AddMirrors()
 		if err != nil {
 			printErrors(err)
 			os.Exit(1)

@@ -41,13 +41,15 @@ func TestCorrelations(t *testing.T) {
 		t.Fatal(err)
 	}
 	template := NewTemplate(templateImg)
+	template.Threshold = 0.98
+	template.TargetWidth = 5
 	for i := 0; i < 3; i++ {
 		image, err := readAssetImage("negative_" + strconv.Itoa(i) + ".jpg")
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		matches := template.Correlations(image, 0.98)
+		matches := template.Matches(image)
 		if len(matches) > 0 {
 			t.Error("got false matches for negative", i)
 		}
@@ -56,11 +58,11 @@ func TestCorrelations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	matches := template.Correlations(positiveImg, 0.98)
-	matches = matches.NonOverlappingSet()
+	matches := template.Matches(positiveImg)
+	matches = matches.FilterNearMatches()
 	if len(matches) != 1 {
 		t.Error("invalid number of matches for positive:", len(matches))
-	} else if matches[0].X != 201 || matches[0].Y != 593 {
+	} else if matches[0].Center.X != 201 || matches[0].Center.Y != 593 {
 		t.Error("invalid match for positive:", matches[0])
 	}
 }
@@ -93,13 +95,16 @@ func BenchmarkCorrelations(b *testing.B) {
 		b.Fatal(err)
 	}
 	template := NewTemplate(templateImg)
+	template.Threshold = 0.98
+
 	positiveImg, err := readAssetImage("positive.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		template.Correlations(positiveImg, 0.98)
+		template.Matches(positiveImg)
 	}
 }
 
