@@ -89,6 +89,26 @@ func BenchmarkMaxCorrelation(b *testing.B) {
 	}
 }
 
+func BenchmarkMaxCorrelationAll(b *testing.B) {
+	negatives := make([]*Image, 3)
+	for i := range negatives {
+		var err error
+		negatives[i], err = readAssetImage("negative_" + strconv.Itoa(i) + ".jpg")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	templateImg, err := readAssetImage("template.png")
+	if err != nil {
+		b.Fatal(err)
+	}
+	template := NewTemplate(templateImg)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		template.MaxCorrelationAll(negatives)
+	}
+}
+
 func BenchmarkCorrelations(b *testing.B) {
 	templateImg, err := readAssetImage("template.png")
 	if err != nil {

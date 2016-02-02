@@ -75,10 +75,7 @@ func LoadDatabase(directory string, strictness float64) (db *Database, err error
 	}
 
 	for _, t := range res.Templates {
-		var maxCorrelation float64
-		for _, negative := range res.Negatives {
-			maxCorrelation = math.Max(maxCorrelation, t.MaxCorrelation(negative))
-		}
+		maxCorrelation := t.MaxCorrelationAll(res.Negatives)
 		t.Threshold = 1*strictness + (1-strictness)*maxCorrelation
 	}
 
@@ -94,17 +91,14 @@ func LoadDatabase(directory string, strictness float64) (db *Database, err error
 func (db *Database) AddMirrors() {
 	newTemplates := make([]*Template, len(db.Templates))
 	for i, template := range db.Templates {
-		t := template.Mirror()
-		newTemplates[i] = t
+		mirror := template.Mirror()
+		newTemplates[i] = mirror
 
-		var maxCorrelation float64
-		for _, negative := range db.Negatives {
-			maxCorrelation = math.Max(maxCorrelation, t.MaxCorrelation(negative))
-		}
+		maxCorrelation := mirror.MaxCorrelationAll(db.Negatives)
 		mirrorThreshold := 1*db.Strictness + (1-db.Strictness)*maxCorrelation
 
 		threshold := math.Max(mirrorThreshold, template.Threshold)
-		t.Threshold = threshold
+		mirror.Threshold = threshold
 		template.Threshold = threshold
 	}
 	db.Templates = append(db.Templates, newTemplates...)

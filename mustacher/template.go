@@ -150,24 +150,37 @@ func (t *Template) Matches(img *Image) MatchSet {
 // If the image contains close matches to the template,
 // the returned value will be close to 1.
 func (t *Template) MaxCorrelation(img *Image) float64 {
-	if t.Image.Width > img.Width || t.Image.Height > img.Height {
-		return 0
-	}
+	return t.MaxCorrelationAll([]*Image{img})
+}
 
+// MaxCorrelationAll returns the maximum correlation that this
+// template has in any of the supplied images.
+//
+// Using one call to MaxCorrelationAll() will almost surely
+// perform better than calling MaxCorrelation multiple times,
+// especially with many samples.
+func (t *Template) MaxCorrelationAll(images []*Image) float64 {
 	if !t.hasOptimizationMetadata() {
 		t.computeOptimizationMetadata()
 	}
 
 	var res float64
-	subregionInfo := newSubregionInfo(t.Image.Width, t.Image.Height)
-	for y := 0; y < img.Height-t.Image.Height; y++ {
-		subregionInfo.StartNewRow(img, y)
-		for x := 0; x < img.Width-t.Image.Width; x++ {
-			corr := t.correlation(subregionInfo, img, res)
-			res = math.Max(res, corr)
-			subregionInfo.Roll(img)
+
+	for _, img := range images {
+		if t.Image.Width > img.Width || t.Image.Height > img.Height {
+			continue
+		}
+		subregionInfo := newSubregionInfo(t.Image.Width, t.Image.Height)
+		for y := 0; y < img.Height-t.Image.Height; y++ {
+			subregionInfo.StartNewRow(img, y)
+			for x := 0; x < img.Width-t.Image.Width; x++ {
+				corr := t.correlation(subregionInfo, img, res)
+				res = math.Max(res, corr)
+				subregionInfo.Roll(img)
+			}
 		}
 	}
+
 	return res
 }
 
