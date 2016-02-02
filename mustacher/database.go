@@ -10,7 +10,7 @@ import (
 
 // A Database stores and manipulates a set of training images.
 type Database struct {
-	Templates  []*Template `json:"template"`
+	Templates  []*Template `json:"templates"`
 	Negatives  []*Image    `json:"negatives"`
 	Strictness float64     `json:"strictness"`
 }
