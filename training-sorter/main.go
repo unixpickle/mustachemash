@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +13,7 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		printErrors("Usage: training-sorter <sort dir> db1 [db2 ...]",
+		printErrors("Usage: training-sorter <sort dir> db1.json [db2.json ...]",
 			"",
 			"training-sorter runs many images against template",
 			"databases and separates the ones that work from the ones",
@@ -34,13 +36,20 @@ func main() {
 
 	databases := make([]*mustacher.Database, len(os.Args)-2)
 	for i := 2; i < len(os.Args); i++ {
-		db, err := mustacher.LoadDatabase(os.Args[i], 0.2)
-		db.AddMirrors()
+		databases[i-2] = &mustacher.Database{}
+		contents, err := ioutil.ReadFile(os.Args[i])
 		if err != nil {
 			printErrors(err)
 			os.Exit(1)
 		}
-		databases[i-2] = db
+		if err := json.Unmarshal(contents, databases[i-2]); err != nil {
+			printErrors(err)
+			os.Exit(1)
+		}
+		if err != nil {
+			printErrors(err)
+			os.Exit(1)
+		}
 	}
 
 	SortImages(os.Args[1], imageFiles, databases)
