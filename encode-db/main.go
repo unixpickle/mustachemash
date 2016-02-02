@@ -15,6 +15,7 @@ func main() {
 	mirrorFlag := flag.Bool("mirror", true, "mirror templates")
 	includeNegatives := flag.Bool("negatives", false, "include negatives")
 	strictness := flag.Float64("strictness", 0.2, "threshold strictness")
+	userInfoPrefix := flag.String("uiprefix", "", "template userinfo prefix")
 
 	flag.Parse()
 
@@ -38,6 +39,10 @@ func main() {
 
 	if !*includeNegatives {
 		db.Negatives = []*mustacher.Image{}
+	}
+
+	for _, template := range db.Templates {
+		template.UserInfo = (*userInfoPrefix) + template.UserInfo
 	}
 
 	log.Println("Encoding as JSON...")
