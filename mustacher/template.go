@@ -102,7 +102,7 @@ func (t *Template) Mirror() *Template {
 		Image:       t.Image.Mirror(),
 		TargetAngle: -float64(t.TargetAngle),
 		TargetCenter: FloatCoordinates{
-			X: float64(t.TargetWidth - t.TargetCenter.X),
+			X: float64(t.Image.Width) - t.TargetCenter.X,
 			Y: t.TargetCenter.Y,
 		},
 		TargetWidth: t.TargetWidth,
