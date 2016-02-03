@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/unixpickle/mustachemash/mustacher"
 )
@@ -35,6 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	list := templatePairList{}
 	for i, template := range database.Templates {
 		var closestMatch *mustacher.Template
 		var closestCorrelation float64
@@ -48,12 +50,12 @@ func main() {
 				closestCorrelation = maxCorr
 			}
 		}
-		if closestMatch == nil {
-			fmt.Println(template.UserInfo, "- none")
-			continue
-		}
-		fmt.Println("Template", template.UserInfo, "-", closestMatch.UserInfo,
-			"- correlation =", closestCorrelation)
+		list = append(list, templatePair{template, closestMatch, closestCorrelation})
+	}
+
+	sort.Sort(list)
+	for _, x := range list {
+		fmt.Println(x)
 	}
 }
 
