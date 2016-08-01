@@ -67,7 +67,9 @@ func (d *Detector) Match(img *haar.DualImage) []*Match {
 			d.Faces.WindowWidth, d.Faces.WindowHeight)
 		faceDual := haar.NewDualImage(faceImg)
 
-		for y := 0; y <= faceImg.Height()-d.NoseMouths.WindowHeight; y++ {
+		minY := faceImg.Height() / 3
+
+		for y := minY; y <= faceImg.Height()-d.NoseMouths.WindowHeight; y++ {
 			for x := 0; x <= faceImg.Width()-d.NoseMouths.WindowWidth; x++ {
 				cropped := faceDual.Window(x, y, d.NoseMouths.WindowWidth,
 					d.NoseMouths.WindowHeight)
