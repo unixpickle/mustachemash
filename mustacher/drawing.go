@@ -1,33 +1,34 @@
+// Package mustacher uses face detection algorithms to
+// add mustaches to people's faces in images.
 package mustacher
 
 import (
 	"image"
 	"image/color"
-	"math"
 
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
 )
 
-// DrawMustaches generates a new image with graphical mustaches
-// drawn at every match in a set.
-func DrawMustaches(img image.Image, matches MatchSet) image.Image {
+// Draw generates a new image by drawing a mustache
+// for every match in a list of matches.
+func Draw(img image.Image, matches []*Match) image.Image {
 	newImage := image.NewRGBA(image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy()))
 	ctx := draw2dimg.NewGraphicContext(newImage)
 	ctx.DrawImage(img)
 	for _, match := range matches {
 		ctx.Save()
-		ctx.Translate(match.Center.X, match.Center.Y)
-		ctx.Rotate(match.Template.TargetAngle * math.Pi / 180)
-		drawMustache(ctx, match.Width)
+		ctx.Translate(match.X, match.Y)
+		ctx.Rotate(match.Angle)
+		drawMustache(ctx, match.Radius*2)
 		ctx.Restore()
 	}
 	return newImage
 }
 
 func drawMustache(ctx draw2d.GraphicContext, width float64) {
-	// We do not use ctx.Scale() for scaling because scaling up Bezier curves
-	// makes their vertices visible.
+	// We do not use ctx.Scale() for scaling because scaling
+	// up Bezier curves makes their vertices visible.
 	scale := width / 100
 
 	ctx.Save()
