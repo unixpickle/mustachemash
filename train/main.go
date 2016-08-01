@@ -31,7 +31,7 @@ func main() {
 		&haar.Requirements{
 			PositiveRetention: 1,
 			NegativeExclusion: 1,
-			MaxFeatures:       10,
+			MaxFeatures:       40,
 		},
 	}
 
