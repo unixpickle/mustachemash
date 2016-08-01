@@ -25,29 +25,31 @@ type Match struct {
 	Angle float64
 }
 
-// A Detector uses a face and nose-mouth classifier to
-// detect locations at which mustaches should be added.
+// A Detector uses a face cascade, a nose-mouth classifier,
+// and an angler to detect mustache destinations.
 type Detector struct {
 	Faces      *haar.Cascade
 	NoseMouths *haar.Cascade
+	Angler     *AnglerNode
 }
 
 // LoadDetector loads a detector from the filesystem,
-// given the paths to the detection cascades.
-func LoadDetector(facesPath, noseMouthsPath string) (*Detector, error) {
-	var cascades [2]*haar.Cascade
-	for i, path := range []string{facesPath, noseMouthsPath} {
+// given the paths to the detection cascades and angler.
+func LoadDetector(facesPath, noseMouthsPath, anglerPath string) (*Detector, error) {
+	objects := []interface{}{
+		new(haar.Cascade), new(haar.Cascade), new(AnglerNode),
+	}
+	for i, path := range []string{facesPath, noseMouthsPath, anglerPath} {
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		var cascade haar.Cascade
-		if err := json.Unmarshal(data, &cascade); err != nil {
+		if err := json.Unmarshal(data, objects[i]); err != nil {
 			return nil, err
 		}
-		cascades[i] = &cascade
 	}
-	return &Detector{cascades[0], cascades[1]}, nil
+	return &Detector{objects[0].(*haar.Cascade), objects[1].(*haar.Cascade),
+		objects[2].(*AnglerNode)}, nil
 }
 
 // Match finds all of the mustache destinations in
@@ -78,6 +80,10 @@ func (d *Detector) Match(img *haar.DualImage) []*Match {
 			}
 		}
 
+		bestWindow := faceDual.Window(highestX, highestY, d.NoseMouths.WindowWidth,
+			d.NoseMouths.WindowHeight)
+		angle := d.Angler.Classify(bestWindow)
+
 		xScale := float64(m.Width) / float64(faceImg.Width())
 		yScale := float64(m.Height) / float64(faceImg.Height())
 
@@ -87,7 +93,7 @@ func (d *Detector) Match(img *haar.DualImage) []*Match {
 			Y: yScale*(float64(highestY)+float64(d.NoseMouths.WindowHeight)/2) +
 				float64(m.Y),
 			Radius: 0.5 * xScale * float64(d.NoseMouths.WindowWidth),
-			Angle:  0,
+			Angle:  angle,
 		}
 	}
 

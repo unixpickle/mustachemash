@@ -13,26 +13,26 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 5 {
-		fmt.Fprintf(os.Stderr, "Usage: %s faces.json nosemouths.json in_img out_img",
+	if len(os.Args) != 6 {
+		fmt.Fprintf(os.Stderr, "Usage: %s faces.json nosemouths.json angler.json in_img out_img\n",
 			os.Args[0])
 		os.Exit(1)
 	}
 
-	detector, err := mustacher.LoadDetector(os.Args[1], os.Args[2])
+	detector, err := mustacher.LoadDetector(os.Args[1], os.Args[2], os.Args[3])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to load detector:", err)
 		os.Exit(1)
 	}
 
-	inDualImg, inImg, err := readImage(os.Args[3])
+	inDualImg, inImg, err := readImage(os.Args[4])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to load input image:", err)
 		os.Exit(1)
 	}
 
 	outImg := mustacher.Draw(inImg, detector.Match(inDualImg))
-	outFile, err := os.Create(os.Args[4])
+	outFile, err := os.Create(os.Args[5])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to create output:", err)
 		os.Exit(1)
