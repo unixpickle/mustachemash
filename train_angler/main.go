@@ -127,7 +127,10 @@ func readImages(dirPath string, listing []os.FileInfo) ([]haar.IntegralImage, er
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, haar.ImageIntegralImage(img))
+		// Use a DualImage to normalize the colors.
+		intImg := haar.ImageIntegralImage(img)
+		dualImg := haar.NewDualImage(intImg)
+		res = append(res, dualImg.Window(0, 0, intImg.Width(), intImg.Height()))
 	}
 	return res, nil
 }
