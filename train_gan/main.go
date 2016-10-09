@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "image/jpeg"
 
@@ -22,8 +23,8 @@ import (
 
 const (
 	FaceSize  = 28
-	StepSize  = 0.001
-	BatchSize = 64
+	StepSize  = 0.0005
+	BatchSize = 128
 )
 
 const (
@@ -33,6 +34,8 @@ const (
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	if len(os.Args) != 4 {
 		fmt.Fprintln(os.Stderr, "Usage: train_gan <image_path> <model_out> <gen.png>")
 		os.Exit(1)
@@ -143,7 +146,7 @@ func createModel(samples sgd.SampleSet) *gans.FM {
 	discrim := createDiscriminator(samples)
 	return &gans.FM{
 		Discriminator: discrim,
-		FeatureLayers: len(discrim) - 2,
+		FeatureLayers: len(discrim) - 1,
 		Generator:     createGenerator(),
 		RandomSize:    14 * 14,
 	}
