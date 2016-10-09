@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Placement Maker</title>
+
+    <script type="text/javascript">
+    setInterval(function() {
+      var x = parseFloat(document.getElementById('x-coord').value);
+      var y = parseFloat(document.getElementById('y-coord').value);
+      var radius = parseFloat(document.getElementById('radius').value);
+      var angle = parseFloat(document.getElementById('angle').value);
+      var translate = 'translate(' + (x*28).toFixed(2) + 'px, ' +
+        (y*28).toFixed(2) + 'px)';
+      var rotation = 'rotate(' + (angle * 180 / Math.PI).toFixed(2) +
+        'deg)';
+      var scale = 'scale(' + (radius * (28/10)).toFixed(2) + ')';
+      var transform = translate + ' ' + rotation + ' ' + scale;
+      var stache = document.getElementById('mustache');
+      stache.style.webkitTransform = transform;
+      stache.style.transform = transform;
+    }, 100);
+    </script>
+  </head>
+  <body>
+    <form action="/save?">
+      <input type="hidden" name="image-name" value="{{.}}">
+      <div style="position: relative">
+        <img src="/image?name={{.}}">
+        <img id="mustache" src="mustache.svg" width="20"
+             style="position: absolute; top: -3px; left: -10px">
+      </div>
+      <br>
+      X: <input type="range" name="x-coord" id="x-coord" min="0" max="1" step="any">
+      <br>
+      Y: <input type="range" name="y-coord" id="y-coord" min="0" max="1" step="any">
+      <br>
+      Radius: <input type="range" name="radius" id="radius" min="0" max="1" step="any">
+      <br>
+      Angle: <input type="range" name="angle" id="angle" min="-1" max="1" step="any">
+      <br>
+      <input type="submit">
+    </form>
+  </body>
+</html>

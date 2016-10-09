@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 30">
+  <!-- Line 1: bottom left part of mustache.
+       Line 2: bottom right part of mustache.
+       Line 3: top right part of mustache.
+       Line 4: top left part of mustache.
+  -->
+  <path
+    d="M14,4 c-2,-3 -14,-3 -14,9 c0,20 30,20 50,4
+       c20,16 50,16 50,-4 c0,-12 -12,-12 -14,-9
+       c10,0 10,15 2,15 c-5,0 -20,-18 -28,-18 c-3,0 -7,1 -10,5
+       c-3,-4 -7,-5 -10,-5 c-8,0 -23,18 -28,18 c-8,0 -8,-15 2,-15 z" />
+</svg>
