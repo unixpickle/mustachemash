@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	StepSize  = 0.00005
+	StepSize  = 0.0001
 	BatchSize = 64
 )
 
@@ -45,13 +45,15 @@ func main() {
 	samples := loadSamples(os.Args[2], os.Args[3])
 
 	log.Println("Training network...")
-	g := &neuralnet.BatchRGradienter{
-		Learner:  network.BatchLearner(),
-		CostFunc: neuralnet.MeanSquaredCost{},
+	g := &sgd.Adam{
+		Gradienter: &neuralnet.BatchRGradienter{
+			Learner:  network.BatchLearner(),
+			CostFunc: neuralnet.MeanSquaredCost{},
+		},
 	}
 	var iteration int
 	sgd.SGDMini(g, samples, StepSize, BatchSize, func(samples sgd.SampleSet) bool {
-		cost := neuralnet.TotalCost(g.CostFunc, network, samples)
+		cost := neuralnet.TotalCost(neuralnet.MeanSquaredCost{}, network, samples)
 		log.Printf("iteration %d: cost=%f", iteration, cost)
 		iteration++
 		return true
@@ -128,6 +130,16 @@ func loadSamples(imageDir, placementFile string) sgd.SampleSet {
 			Input:  tensor.Data,
 			Output: outVec,
 		})
+		outVec = []float64{
+			1 - placement.CenterX,
+			placement.CenterY,
+			placement.Radius,
+			-placement.Angle,
+		}
+		samples = append(samples, neuralnet.VectorSample{
+			Input:  flipImage(tensor).Data,
+			Output: outVec,
+		})
 	}
 
 	return samples
@@ -141,6 +153,18 @@ func imageTensor(img image.Image) *neuralnet.Tensor3 {
 			res.Set(x, y, 0, float64(r)/0xffff)
 			res.Set(x, y, 1, float64(g)/0xffff)
 			res.Set(x, y, 2, float64(b)/0xffff)
+		}
+	}
+	return res
+}
+
+func flipImage(tensor *neuralnet.Tensor3) *neuralnet.Tensor3 {
+	res := neuralnet.NewTensor3(tensor.Width, tensor.Height, tensor.Depth)
+	for y := 0; y < tensor.Height; y++ {
+		for x := 0; x < tensor.Width; x++ {
+			for z := 0; z < tensor.Depth; z++ {
+				res.Set(tensor.Width-(x+1), y, z, tensor.Get(x, y, z))
+			}
 		}
 	}
 	return res
