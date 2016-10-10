@@ -6,4 +6,4 @@ MustacheMash will be an awesome website which puts mustaches on all your Faceboo
 
 I have implemented face detection in [unixpickle/haar](https://github.com/unixpickle/haar). For mustachemash, I used Haar-like features to detect the mouth+nose in an image and add mustaches. Here is an example result:
 
-![Demo Picture](demo_out.png)
+![Demo Picture](output.png)
